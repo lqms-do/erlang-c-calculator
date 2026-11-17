@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Erlang C Staffing Calculator | LQMS</title>
+<meta name="description" content="Free Erlang C staffing calculator for contact centers by LQMS – Lazala Quality Management Solution.">
+<style>
+  :root{
+    --navy:#1F3A5F; --navy-2:#2C5282; --accent:#2F855A; --warn:#C05621; --bad:#C53030;
+    --bg:#F5F7FA; --card:#FFFFFF; --ink:#1A202C; --muted:#5A6577; --line:#E2E8F0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+  header{background:var(--navy);color:#fff;padding:22px 20px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header .brand{font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+  header h1{margin:4px 0 2px;font-size:26px}
+  header p{margin:0;opacity:.85;font-size:14px}
+  main{padding:22px 20px 40px}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--navy);text-transform:uppercase;letter-spacing:.05em}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:15px;font-variant-numeric:tabular-nums}
+  input:focus{outline:2px solid var(--navy-2);border-color:transparent}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hint{font-size:12px;color:var(--muted);margin-top:12px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .kpi .v{font-size:28px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .kpi.hero{background:var(--navy);border-color:var(--navy)}
+  .kpi.hero .v,.kpi.hero .l{color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+  th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  th:first-child,td:first-child{text-align:left}
+  tr.rec td{background:#EBF4FF;font-weight:700}
+  .ok{color:var(--accent)} .mid{color:var(--warn)} .bad{color:var(--bad)}
+  .msg{padding:10px 12px;border-radius:6px;background:#FFF5F5;color:var(--bad);font-size:14px;display:none;margin-bottom:14px}
+  footer{max-width:1080px;margin:0 auto;padding:0 20px 30px;font-size:12px;color:var(--muted)}
+  footer a{color:var(--navy-2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">LQMS · Lazala Quality Management Solution</div>
+    <h1>Erlang C Staffing Calculator</h1>
+    <p>Agents required per interval to meet service level, ASA and occupancy targets.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card" aria-label="Inputs">
+      <h2>Interval inputs</h2>
+      <div class="row2">
+        <div><label for="calls">Calls offered</label><input id="calls" type="number" min="0" step="1" value="100"></div>
+        <div><label for="interval">Interval (min)</label><input id="interval" type="number" min="1" step="1" value="30"></div>
+      </div>
+      <label for="aht">Average handle time – AHT (seconds)</label>
+      <input id="aht" type="number" min="1" step="1" value="180">
+
+      <h2 style="margin-top:20px">Targets</h2>
+      <div class="row2">
+        <div><label for="sl">Service level (%)</label><input id="sl" type="number" min="1" max="99.9" step="0.1" value="80"></div>
+        <div><label for="thr">Answered within (s)</label><input id="thr" type="number" min="0" step="1" value="20"></div>
+      </div>
+      <div class="row2">
+        <div><label for="occ">Max occupancy (%)</label><input id="occ" type="number" min="1" max="100" step="0.5" value="85"></div>
+        <div><label for="asaT">ASA target (s)</label><input id="asaT" type="number" min="0" step="1" placeholder="optional"></div>
+      </div>
+      <label for="shr">Shrinkage (%)</label>
+      <input id="shr" type="number" min="0" max="95" step="0.5" value="30">
+      <p class="hint">Classic Erlang C (M/M/N): random arrivals, no abandonment. Treat results as the minimum staffing floor; validate against abandonment and real-time adherence.</p>
+    </section>
+
+    <section aria-label="Results">
+      <div class="msg" id="msg"></div>
+      <div class="kpis">
+        <div class="kpi hero"><div class="v" id="kAgents">–</div><div class="l">Agents on phones</div></div>
+        <div class="kpi hero"><div class="v" id="kFte">–</div><div class="l">Scheduled FTE</div></div>
+        <div class="kpi"><div class="v" id="kSl">–</div><div class="l" id="kSlL">Service level</div></div>
+        <div class="kpi"><div class="v" id="kAsa">–</div><div class="l">ASA (seconds)</div></div>
+        <div class="kpi"><div class="v" id="kOcc">–</div><div class="l">Occupancy</div></div>
+        <div class="kpi"><div class="v" id="kA">–</div><div class="l">Traffic (Erlangs)</div></div>
+        <div class="kpi"><div class="v" id="kPw">–</div><div class="l">Probability of wait</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Staffing sensitivity</h2>
+        <table>
+          <thead><tr><th>Agents</th><th>Service level</th><th>ASA (s)</th><th>Occupancy</th><th>Prob. wait</th><th>FTE</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <p class="hint">The highlighted row is the minimum staffing that meets every target. Each extra agent shows its marginal gain, which is useful for cost vs. service trade-off decisions.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  © LQMS – Lazala Quality Management Solution · <a href="https://lqms.com.do">lqms.com.do</a> ·
+  <a href="https://github.com/lqms-do/erlang-c-calculator">Source on GitHub</a> · MIT License
+</footer>
+
+<script>
+// ---- Erlang C engine (mirrors erlang_c.py) ----
+function erlangB(n, a){ let b = 1; for (let k = 1; k <= n; k++) b = a*b/(k + a*b); return b; }
+function erlangC(n, a){ if (n <= a) return 1; const b = erlangB(n, a); return n*b/(n - a*(1-b)); }
+function serviceLevel(n, a, aht, t){ if (n <= a) return 0; return Math.max(0, 1 - erlangC(n,a)*Math.exp(-(n-a)*t/aht)); }
+function asa(n, a, aht){ return n <= a ? Infinity : erlangC(n,a)*aht/(n-a); }
+function occ(n, a){ return n <= 0 ? 1 : Math.min(1, a/n); }
+
+const $ = id => document.getElementById(id);
+const pct = x => (x*100).toFixed(1) + "%";
+const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? null : v; };
+
+function calc(){
+  const calls = num("calls"), ivl = num("interval"), aht = num("aht");
+  const sl = num("sl"), thr = num("thr"), mo = num("occ"), asaT = num("asaT"), shr = num("shr") ?? 0;
+  const msg = $("msg"); msg.style.display = "none";
+  if (calls === null || ivl === null || aht === null || sl === null || thr === null || calls < 0 || ivl <= 0 || aht <= 0 || sl <= 0 || sl >= 100 || shr < 0 || shr >= 100){
+    msg.textContent = "Check the inputs: calls ≥ 0, interval and AHT > 0, service level between 0 and 100%, shrinkage below 100%.";
+    msg.style.display = "block"; return;
+  }
+  const a = calls*aht/(ivl*60), slT = sl/100, moT = mo === null ? null : mo/100, sh = shr/100;
+  const fte = n => Math.ceil(n/(1 - sh));
+  const meets = n => serviceLevel(n,a,aht,thr) >= slT && (moT === null || occ(n,a) <= moT) && (asaT === null || asa(n,a,aht) <= asaT);
+
+  let n = 0;
+  if (a > 0){ n = Math.floor(a) + 1; while (!meets(n) && n < 10000) n++; }
+
+  $("kAgents").textContent = n;
+  $("kFte").textContent = n ? fte(n) : 0;
+  $("kSlL").textContent = `Service level (${thr}s)`;
+  $("kSl").textContent = n ? pct(serviceLevel(n,a,aht,thr)) : "100%";
+  $("kAsa").textContent = n ? asa(n,a,aht).toFixed(1) : "0";
+  $("kOcc").textContent = n ? pct(occ(n,a)) : "0%";
+  $("kA").textContent = a.toFixed(2);
+  $("kPw").textContent = n ? pct(erlangC(n,a)) : "0%";
+
+  const start = Math.max(1, Math.floor(a) + 1), rows = [];
+  for (let k = start; k <= Math.max(start + 8, n + 3); k++){
+    const s = serviceLevel(k,a,aht,thr), q = asa(k,a,aht), o = occ(k,a);
+    const cls = s >= slT ? "ok" : (s >= slT - 0.1 ? "mid" : "bad");
+    rows.push(`<tr class="${k === n ? "rec" : ""}"><td>${k}</td><td class="${cls}">${pct(s)}</td><td>${isFinite(q) ? q.toFixed(1) : "∞"}</td><td>${pct(o)}</td><td>${pct(erlangC(k,a))}</td><td>${fte(k)}</td></tr>`);
+  }
+  $("tbody").innerHTML = rows.join("");
+}
+document.querySelectorAll("input").forEach(i => i.addEventListener("input", calc));
+calc();
+</script>
+</body>
+</html>
